@@ -8,6 +8,7 @@ import wikipedia
 nlp_sp = spacy.load('en')
 # QA pipeline
 nlp_qa = pipeline('question-answering')
+nlp_qa.tokenizer.truncation = "longest_first"
 
 SIM_THRESHOLD = 0.01
 
@@ -47,7 +48,7 @@ for question in [
         if arr_similarity[ix] < SIM_THRESHOLD:
             continue
 
-        context = paragraph[:1000]
+        context = paragraph
         try:
             output = nlp_qa({
                 'question': question,
