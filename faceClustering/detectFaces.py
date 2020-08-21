@@ -334,7 +334,7 @@ def extract_face_encodings(outputfile,
 
 ## ETL Pipeline for Face Detection and Embedding
 
-rootDir = 'datasets/' # path to the root directory where the images are stored
+rootDir = 'data/' # path to the root directory where the images are stored
 
 # Search images
 listFiles = list(find_images(f'{rootDir}'))
