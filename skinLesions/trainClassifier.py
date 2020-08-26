@@ -19,9 +19,9 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 use_cuda = torch.cuda.is_available()
 
-def train(n_epochs, loaders, model, optimizer, criterion, use_cuda, save_path):
+def train(loaders, model, criterion, optimizer, scheduler,  use_cuda, save_path, n_epochs = 12):
     """
-    returns trained model
+    Train model
     """
     # initialize tracker for minimum validation loss
     valid_loss_min = np.Inf 
@@ -48,7 +48,8 @@ def train(n_epochs, loaders, model, optimizer, criterion, use_cuda, save_path):
             loss.backward()
             optimizer.step()
             train_loss = train_loss + ((1 / (batch_idx + 1)) * (loss.data - train_loss))
-            
+        scheduler.step()
+        
         ######################    
         # validate the model #
         ######################
@@ -205,9 +206,17 @@ def main():
         
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(lr=0.001,momentum=0.9,params=model_transfer.fc.parameters())
+    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
 
-    n_epochs = 25
-    model_transfer = train(n_epochs, data_loaders, model_transfer, optimizer, criterion, use_cuda, f'model_{model_label}.pt')
+    model_transfer = train(
+        data_loaders,
+        model_transfer,
+        criterion,
+        optimizer,
+        lr_scheduler,
+        use_cuda,
+        f'model_{model_label}.pt'
+    )
 
     # load the model that got the best validation accuracy
     model_transfer.load_state_dict(torch.load(f'model_{model_label}.pt'))
