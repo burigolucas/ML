@@ -21,7 +21,21 @@ use_cuda = torch.cuda.is_available()
 
 def train(loaders, model, criterion, optimizer, scheduler,  use_cuda, save_path, n_epochs):
     """
-    Train model
+    Train and validate model on trainset and validation datasets.
+    A scheduler is used to reduce the learning rate at a fixed step of epochs.
+
+    Args:
+    loaders (dict of torch.utils.data.DataLoader data loaders)
+    model (torch model)
+    criterion (torch.nn criterion)
+    optimizer (torch.optim optimizer)
+    scheduler (torch.optim.lr_scheduler)
+    use_cuda (bool)
+    save_path (str)
+    n_epochs (int)
+
+    Return:
+    model
     """
     # initialize tracker for minimum validation loss
     valid_loss_min = np.Inf 
@@ -83,6 +97,15 @@ def train(loaders, model, criterion, optimizer, scheduler,  use_cuda, save_path,
 def test(loader, model, criterion, use_cuda):
     '''
     Evaluate accuracy and compute confusion matrix
+
+    Args:
+    loader (torch.utils.data.DataLoader data loader)
+    model (torch model)
+    criterion (torch.nn criterion)
+    use_cuda
+
+    Return:
+    None
     '''                                          
     # monitor test loss and accuracy
     test_loss = 0.
