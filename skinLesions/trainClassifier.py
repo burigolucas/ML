@@ -19,7 +19,7 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 use_cuda = torch.cuda.is_available()
 
-def train(loaders, model, criterion, optimizer, scheduler,  use_cuda, save_path, n_epochs = 12):
+def train(loaders, model, criterion, optimizer, scheduler,  use_cuda, save_path, n_epochs):
     """
     Train model
     """
@@ -218,14 +218,16 @@ def main():
     optimizer = optim.SGD(lr=0.001,momentum=0.9,params=model_params)
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
 
+    # train and validate model
     model_transfer = train(
-        data_loaders,
-        model_transfer,
-        criterion,
-        optimizer,
-        lr_scheduler,
-        use_cuda,
-        f'model_{model_label}.pt'
+        loaders=data_loaders,
+        model=model_transfer,
+        criterion=criterion,
+        optimizer=optimizer,
+        scheduler=lr_scheduler,
+        use_cuda=use_cuda,
+        save_path=f'model_{model_label}.pt',
+        n_epochs=12
     )
 
     # load the model that got the best validation accuracy
