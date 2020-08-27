@@ -80,7 +80,7 @@ def train(loaders, model, criterion, optimizer, scheduler,  use_cuda, save_path,
     return model
 
 
-def test(loaders, model, criterion, use_cuda):
+def test(loader, model, criterion, use_cuda):
     '''
     Evaluate accuracy and compute confusion matrix
     '''                                          
@@ -92,7 +92,7 @@ def test(loaders, model, criterion, use_cuda):
     y_true = np.empty((0,1), int)
     
     model.eval()
-    for batch_idx, (data, target) in enumerate(loaders['test']):
+    for batch_idx, (data, target) in enumerate(loader):
         # move to GPU
         if use_cuda:
             data, target = data.cuda(), target.cuda()
@@ -232,7 +232,12 @@ def main():
     model_transfer.load_state_dict(torch.load(f'model_{model_label}.pt'))
 
     # evaluate model in test set
-    test(data_loaders, model_transfer, criterion, use_cuda)
+    test(
+        loader=data_loaders['test'],
+        model=model_transfer,
+        criterion=criterion,
+        use_cuda=use_cuda
+    )
 
 if __name__ == '__main__':
     main()
