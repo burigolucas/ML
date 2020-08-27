@@ -191,21 +191,31 @@ def main():
     }
 
     ## Model architecture using transfer learning
-    model_transfer = models.resnet18(pretrained=True)
-    model_label = 'transfer_ResNet18'
+    model_label = 'transfer_VGG16'
+    if model_label == 'transfer_ResNet18':
+        model_transfer = models.resnet18(pretrained=True)
 
-    # Freeze training for all but last linear layer
-    for param in model_transfer.parameters():
-        param.requires_grad = False
+        # Freeze training for all but last linear layer
+        for param in model_transfer.parameters():
+            param.requires_grad = False
 
-    in_features = model_transfer.fc.in_features
-    model_transfer.fc = nn.Linear(in_features, len(classes))
+        in_features = model_transfer.fc.in_features
+        model_transfer.fc = nn.Linear(in_features, len(classes))
+        model_params = model_transfer.fc.parameters()
+    else:
+        model_transfer = models.vgg16(pretrained=True)
+
+        # Freeze training for all "features" layers
+        for param in model_transfer.features.parameters():
+            param.requires_grad = False
+        model_transfer.classifier[6] = nn.Linear(model_transfer.classifier[3].out_features,len(classes))
+        model_params = model_transfer.classifier.parameters()
 
     if use_cuda:
         model_transfer = model_transfer.cuda()
         
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(lr=0.001,momentum=0.9,params=model_transfer.fc.parameters())
+    optimizer = optim.SGD(lr=0.001,momentum=0.9,params=model_params)
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
 
     model_transfer = train(
