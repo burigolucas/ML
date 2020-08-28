@@ -89,7 +89,10 @@ def train(loaders, model, criterion, optimizer, scheduler,  use_cuda, save_path,
             valid_loss_min = valid_loss
             print("Saving model...")
             torch.save(model.state_dict(), save_path)
-     
+
+    # load the model that got the best validation accuracy
+    model.load_state_dict(torch.load(save_path))
+
     # return trained model
     return model
 
