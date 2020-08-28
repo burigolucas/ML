@@ -217,37 +217,83 @@ def main():
     }
 
     ## Model architecture using transfer learning
-    model_label = 'transfer_VGG16'
+    model_label = 'scratch_CNN'
+
     if model_label == 'transfer_ResNet18':
-        model_transfer = models.resnet18(pretrained=True)
+        # Use ResNet18 for feature extraction
+        model = models.resnet18(pretrained=True)
 
         # Freeze training for all but last linear layer
-        for param in model_transfer.parameters():
+        for param in model.parameters():
             param.requires_grad = False
 
-        in_features = model_transfer.fc.in_features
-        model_transfer.fc = nn.Linear(in_features, len(classes))
-        model_params = model_transfer.fc.parameters()
-    else:
-        model_transfer = models.vgg16(pretrained=True)
+        in_features = model.fc.in_features
+        model.fc = nn.Linear(in_features, len(classes))
+        model_params = model.fc.parameters()
+        lr = 0.001
+
+    elif model_label == 'transfer_VGG16':
+        # Use VGG16 for feature extraction
+        model = models.vgg16(pretrained=True)
 
         # Freeze training for all "features" layers
-        for param in model_transfer.features.parameters():
+        for param in model.features.parameters():
             param.requires_grad = False
-        model_transfer.classifier[6] = nn.Linear(model_transfer.classifier[3].out_features,len(classes))
-        model_params = model_transfer.classifier.parameters()
+        model.classifier[6] = nn.Linear(model.classifier[3].out_features,len(classes))
+        model_params = model.classifier.parameters()
+        lr = 0.001
 
+    else:
+        class model_CNN(nn.Module):
+            def __init__(self):
+                super(model_CNN, self).__init__()
+                ## Define layers of a CNN
+                self.conv1 = nn.Conv2d(3, 32, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                self.conv2 = nn.Conv2d(32, 64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                self.conv3 = nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1))
+                self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
+                self.avgpool = nn.AvgPool2d(kernel_size=7, stride=7, padding=0)
+                self.fc1 = nn.Linear(in_features=2048, out_features=512, bias=True)
+                self.fc2 = nn.Linear(in_features=512, out_features=len(classes), bias=True)
+                self.dropout = nn.Dropout(0.50)
+                self.relu = nn.ReLU()
+                self.sigmoid = nn.Softmax(dim=1)
+                
+            def forward(self, x):
+                ## Define forward behavior
+                x = self.conv1(x)
+                x = self.relu(x)
+                x = self.maxpool(x)
+                x = self.conv2(x)
+                x = self.relu(x)
+                x = self.maxpool(x)
+                x = self.conv3(x)
+                x = self.relu(x)
+                x = self.maxpool(x)
+                x = self.avgpool(x)
+                x = x.reshape(-1,2048)
+                x = self.fc1(x)
+                x = self.relu(x)
+                x = self.dropout(x)
+                x = self.fc2(x)
+                return x
+
+        # instantiate the CNN
+        model = model_CNN()
+        model_params = model.parameters()
+        lr = 0.1
+       
     if use_cuda:
-        model_transfer = model_transfer.cuda()
+        model = model.cuda()
         
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(lr=0.001,momentum=0.9,params=model_params)
     lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
 
     # train and validate model
-    model_transfer = train(
+    model = train(
         loaders=data_loaders,
-        model=model_transfer,
+        model=model,
         criterion=criterion,
         optimizer=optimizer,
         scheduler=lr_scheduler,
@@ -256,13 +302,10 @@ def main():
         n_epochs=12
     )
 
-    # load the model that got the best validation accuracy
-    model_transfer.load_state_dict(torch.load(f'model_{model_label}.pt'))
-
     # evaluate model in test set
     test(
         loader=data_loaders['test'],
-        model=model_transfer,
+        model=model,
         criterion=criterion,
         use_cuda=use_cuda
     )
