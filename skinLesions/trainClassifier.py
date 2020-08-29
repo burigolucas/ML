@@ -183,14 +183,14 @@ def main():
     valid_data = datasets.ImageFolder(valid_dir, transform=data_transform_train)
     test_data = datasets.ImageFolder(test_dir, transform=data_transform_test)
 
-    # skin lesions classes
-    classes = [strClass.replace('_',' ') for strClass in train_data.classes]
+    # image classes
+    class_names = [strClass.replace('_',' ') for strClass in train_data.classes]
 
     # print out some data stats
     print('Num training images: ', len(train_data))
     print('Num validation images: ', len(valid_data))
     print('Num test images: ', len(test_data))
-    print('Num of classes: ', len(classes))
+    print('Num of classes: ', len(class_names))
 
     # define dataloader parameters
     batch_size = 20
@@ -228,7 +228,7 @@ def main():
             param.requires_grad = False
 
         in_features = model.fc.in_features
-        model.fc = nn.Linear(in_features, len(classes))
+        model.fc = nn.Linear(in_features, len(class_names))
         model_params = model.fc.parameters()
         lr = 0.001
 
@@ -239,7 +239,7 @@ def main():
         # Freeze training for all "features" layers
         for param in model.features.parameters():
             param.requires_grad = False
-        model.classifier[6] = nn.Linear(model.classifier[3].out_features,len(classes))
+        model.classifier[6] = nn.Linear(model.classifier[3].out_features,len(class_names))
         model_params = model.classifier.parameters()
         lr = 0.001
 
@@ -254,7 +254,7 @@ def main():
                 self.maxpool = nn.MaxPool2d(kernel_size=2, stride=2, padding=0)
                 self.avgpool = nn.AvgPool2d(kernel_size=7, stride=7, padding=0)
                 self.fc1 = nn.Linear(in_features=2048, out_features=512, bias=True)
-                self.fc2 = nn.Linear(in_features=512, out_features=len(classes), bias=True)
+                self.fc2 = nn.Linear(in_features=512, out_features=len(class_names), bias=True)
                 self.dropout = nn.Dropout(0.50)
                 self.relu = nn.ReLU()
                 self.sigmoid = nn.Softmax(dim=1)
