@@ -62,7 +62,8 @@ def train(loaders, model, criterion, optimizer, scheduler,  use_cuda, save_path,
             loss.backward()
             optimizer.step()
             train_loss = train_loss + ((1 / (batch_idx + 1)) * (loss.data - train_loss))
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
         
         ######################    
         # validate the model #
@@ -287,8 +288,14 @@ def main():
         model = model.cuda()
         
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(lr=0.001,momentum=0.9,params=model_params)
-    lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
+
+    # SGD optimizer with lr scheduler
+    #optimizer = optim.SGD(lr=lr,momentum=0.9,params=model_params)
+    #lr_scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
+
+    # Adam optimizer without scheduler
+    optimizer = optim.Adam(lr=lr,params=model_params)
+    lr_scheduler = None
 
     # train and validate model
     model = train(
