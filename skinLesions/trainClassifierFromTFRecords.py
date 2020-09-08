@@ -6,9 +6,9 @@ import tensorflow as tf
 
 AUTO     = tf.data.experimental.AUTOTUNE
 
-def _parse_record(example_proto):
+def _deserialize_example(example_proto):
     """
-    Function to parse singe example protocol buffer
+    Parse single example protocol buffer
     """
 
     feature_description = {
@@ -24,16 +24,21 @@ def _parse_record(example_proto):
  
     return tf.io.parse_single_example(example_proto, feature_description)
 
-def read_dataset(files):
+def read_dataset(files,batch_size):
     """
-    Read and parse the dataset from TFRecord files
+    Read and deserialize the dataset from TFRecord files
     """
+    # retrieve raw dataset
+    ds  = tf.data.TFRecordDataset(files, num_parallel_reads=AUTO)
+    ds = ds.cache()
 
-    raw_dataset  = tf.data.TFRecordDataset(files, num_parallel_reads=AUTO)
+    # parse raw dataset
+    ds = ds.map(_deserialize_example)
+    ds = ds.batch(batch_size)
 
-    parsed_dataset = raw_dataset.map(_parse_record)
+    ds = ds.prefetch(AUTO)
 
-    return parsed_dataset
+    return ds
     
 def build_model(config):
     model = None
@@ -49,6 +54,7 @@ def main():
 
     IMG_SIZE = 192
     SEED = 42
+    BATCH_SIZE = 32
 
     PATH = f"/data/melanoma/{IMG_SIZE}x{IMG_SIZE}"
 
@@ -64,9 +70,15 @@ def main():
     print(f"Files valid: {len(files_valid)}")
     print(f"Files test: {len(files_test)}")
 
-    ds_train = read_dataset(files_train)
-    ds_valid = read_dataset(files_valid)
-    ds_test  = read_dataset(files_test)
+    ds_train = read_dataset(
+        files=files_train,
+        batch_size=BATCH_SIZE)
+    ds_valid = read_dataset(
+        files=files_valid,
+        batch_size=BATCH_SIZE)
+    ds_test  = read_dataset(
+        files=files_test,
+        batch_size=BATCH_SIZE)
 
     config = {}
     dataloader = None
