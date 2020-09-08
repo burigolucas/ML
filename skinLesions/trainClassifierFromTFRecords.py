@@ -6,7 +6,10 @@ import tensorflow as tf
 
 AUTO     = tf.data.experimental.AUTOTUNE
 
-def read_dataset(files):
+def _parse_record(example_proto):
+    """
+    Function to parse singe example protocol buffer
+    """
 
     feature_description = {
         'image'                        : tf.io.FixedLenFeature([], tf.string),
@@ -18,8 +21,13 @@ def read_dataset(files):
         'diagnosis'                    : tf.io.FixedLenFeature([], tf.int64),
         'target'                       : tf.io.FixedLenFeature([], tf.int64)
     }
-    def _parse_record(example_proto):
-        return tf.io.parse_single_example(example_proto, feature_description)
+ 
+    return tf.io.parse_single_example(example_proto, feature_description)
+
+def read_dataset(files):
+    """
+    Read and parse the dataset from TFRecord files
+    """
 
     raw_dataset  = tf.data.TFRecordDataset(files, num_parallel_reads=AUTO)
 
