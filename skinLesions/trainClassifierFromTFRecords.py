@@ -33,7 +33,7 @@ def read_dataset(files,batch_size):
     ds = ds.cache()
 
     # parse raw dataset
-    ds = ds.map(_deserialize_example)
+    ds = ds.map(_deserialize_example, num_parallel_calls=AUTO)
     ds = ds.batch(batch_size)
 
     ds = ds.prefetch(AUTO)
