@@ -24,6 +24,15 @@ def _deserialize_example(example_proto):
  
     return tf.io.parse_single_example(example_proto, feature_description)
 
+def _select_features(parsed_example):
+    """
+    Select features
+    """
+    # Decode jpeg image
+    parsed_example['image'] = tf.image.decode_jpeg(parsed_example['image'], channels=3)
+
+    return parsed_example['image'],parsed_example['target']
+
 def read_dataset(files,batch_size):
     """
     Read and deserialize the dataset from TFRecord files
@@ -34,6 +43,8 @@ def read_dataset(files,batch_size):
 
     # parse raw dataset
     ds = ds.map(_deserialize_example, num_parallel_calls=AUTO)
+    ds = ds.map(_select_features, num_parallel_calls=AUTO)
+
     ds = ds.batch(batch_size)
 
     ds = ds.prefetch(AUTO)
