@@ -101,8 +101,11 @@ def main():
         files=files_test,
         batch_size=BATCH_SIZE)
 
-    config = {}
-    dataloader = None
+    dataloader = {
+        'train': ds_train,
+        'valid': ds_valid,
+        'test': ds_test
+    }
 
     model = build_model(config = config)
     model = train(
