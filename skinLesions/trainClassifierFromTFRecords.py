@@ -1,9 +1,10 @@
-# depdencies
 import numpy as np
 from sklearn.model_selection import train_test_split
 
 import tensorflow as tf
 
+from tensorflow import keras
+import tensorflow.keras.applications.efficientnet as efn
 AUTO     = tf.data.experimental.AUTOTUNE
 
 def _deserialize_example(example_proto):
@@ -63,9 +64,18 @@ def test(model,dataloader):
 
 def main():
 
-    IMG_SIZE = 192
     SEED = 42
-    BATCH_SIZE = 32
+    IMG_SIZE = 192
+    BATCH_SIZE = 64
+    config = {
+        'img_size': IMG_SIZE,
+        'batch_size': BATCH_SIZE,
+        'saved_model_path': 'model_EfficientNetB4fromTFRecords.h5',
+        'nb_epochs': 12,
+        'patience': 5,
+        'initial_bias': None,
+        'class_weight': None
+    }
 
     PATH = f"/data/melanoma/{IMG_SIZE}x{IMG_SIZE}"
 
