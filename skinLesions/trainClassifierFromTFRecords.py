@@ -25,16 +25,25 @@ def _deserialize_example(example_proto):
  
     return tf.io.parse_single_example(example_proto, feature_description)
 
-def _select_features(parsed_example):
+def _select_features(parsed_example,config):
     """
     Select features
     """
+    img = _prepare_image(parsed_example['image'],config=config)
+    target = parsed_example['target']
+                         
+    return img, target
+
+def _prepare_image(img, config):
+
     # Decode jpeg image
-    parsed_example['image'] = tf.image.decode_jpeg(parsed_example['image'], channels=3)
+    img = tf.image.decode_jpeg(img, channels=3)
+    img = tf.cast(img, tf.float32) / 255.0
+    
+    img = tf.reshape(img, [config['img_size'],config['img_size'], 3])
+    return img
 
-    return parsed_example['image'],parsed_example['target']
-
-def read_dataset(files,batch_size):
+def read_dataset(files,config):
     """
     Read and deserialize the dataset from TFRecord files
     """
@@ -44,9 +53,9 @@ def read_dataset(files,batch_size):
 
     # parse raw dataset
     ds = ds.map(_deserialize_example, num_parallel_calls=AUTO)
-    ds = ds.map(_select_features, num_parallel_calls=AUTO)
+    ds = ds.map(lambda x: _select_features(x, config=config), num_parallel_calls=AUTO)
 
-    ds = ds.batch(batch_size)
+    ds = ds.batch(config['batch_size']*config['replicas'])
 
     ds = ds.prefetch(AUTO)
 
@@ -67,9 +76,11 @@ def main():
     SEED = 42
     IMG_SIZE = 192
     BATCH_SIZE = 64
+    REPLICAS = 1
     config = {
         'img_size': IMG_SIZE,
         'batch_size': BATCH_SIZE,
+        'replicas': REPLICAS,
         'saved_model_path': 'model_EfficientNetB4fromTFRecords.h5',
         'nb_epochs': 12,
         'patience': 5,
@@ -93,13 +104,13 @@ def main():
 
     ds_train = read_dataset(
         files=files_train,
-        batch_size=BATCH_SIZE)
+        config=config)
     ds_valid = read_dataset(
         files=files_valid,
-        batch_size=BATCH_SIZE)
+        config=config)
     ds_test  = read_dataset(
         files=files_test,
-        batch_size=BATCH_SIZE)
+        config=config)
 
     dataloader = {
         'train': ds_train,
