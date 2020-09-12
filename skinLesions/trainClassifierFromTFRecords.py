@@ -62,7 +62,24 @@ def read_dataset(files,config):
     return ds
     
 def build_model(config):
-    model = None
+
+    dim = config['img_size']
+
+    output_bias = config['initial_bias']
+    if output_bias is not None:
+        output_bias = tf.keras.initializers.Constant(output_bias)
+
+    inp = keras.layers.Input(shape=(dim,dim,3))
+    conv_base = efn.EfficientNetB4(input_shape=(dim,dim,3),weights='imagenet',include_top=False)
+    conv_base.trainable = False
+    x = conv_base(inp)
+    x = keras.layers.GlobalAveragePooling2D()(x)
+    x = keras.layers.Dense(
+        1,
+        activation='sigmoid',
+        bias_initializer = output_bias)(x)
+    model = keras.Model(inputs=inp,outputs=x)
+
     return model
 
 def train(model,config,dataloader):
