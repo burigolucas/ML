@@ -25,25 +25,29 @@ def _deserialize_example(example_proto):
  
     return tf.io.parse_single_example(example_proto, feature_description)
 
-def _select_features(parsed_example,config):
+def _select_features(parsed_example,config,augment):
     """
     Select features
     """
-    img = _prepare_image(parsed_example['image'],config=config)
+    img = _prepare_image(parsed_example['image'],config=config,augment=augment)
     target = parsed_example['target']
                          
     return img, target
 
-def _prepare_image(img, config):
+def _augment_image(img, config):
 
+    return img
+
+def _prepare_image(img, config, augment):
     # Decode jpeg image
     img = tf.image.decode_jpeg(img, channels=3)
     img = tf.cast(img, tf.float32) / 255.0
     
-    img = tf.reshape(img, [config['img_size'],config['img_size'], 3])
+    if augment:
+        img = _augment_image(img, config)
     return img
 
-def read_dataset(files,config):
+def read_dataset(files,config,augment=False):
     """
     Read and deserialize the dataset from TFRecord files
     """
@@ -53,7 +57,7 @@ def read_dataset(files,config):
 
     # parse raw dataset
     ds = ds.map(_deserialize_example, num_parallel_calls=AUTO)
-    ds = ds.map(lambda x: _select_features(x, config=config), num_parallel_calls=AUTO)
+    ds = ds.map(lambda x: _select_features(x, config=config, augment=augment), num_parallel_calls=AUTO)
 
     ds = ds.batch(config['batch_size']*config['replicas'])
 
