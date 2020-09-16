@@ -131,7 +131,48 @@ def build_model(config):
     return conv_base, model
 
 def train(model,config,dataloader):
-    return model
+
+    opt = keras.optimizers.Adam(learning_rate=config['learning_rate'])
+    loss = keras.losses.BinaryCrossentropy(label_smoothing=0.05) 
+    metrics = [
+      keras.metrics.TruePositives(name='tp'),
+      keras.metrics.FalsePositives(name='fp'),
+      keras.metrics.TrueNegatives(name='tn'),
+      keras.metrics.FalseNegatives(name='fn'), 
+      keras.metrics.BinaryAccuracy(name='accuracy'),
+      keras.metrics.Precision(name='precision'),
+      keras.metrics.Recall(name='recall'),
+      keras.metrics.AUC(name='auc'),
+    ]
+
+    model.compile(optimizer=opt,loss=loss,metrics=metrics)
+
+    # callbacks
+    early_stopping = tf.keras.callbacks.EarlyStopping(
+        monitor='val_auc', 
+        mode='max',
+        patience=config['patience'],
+        verbose=1,
+        restore_best_weights=True
+    )
+    checkpoint = ModelCheckpoint(
+        f"{config['model_label']}.h5",
+        monitor='val_auc',
+        mode='max',
+        verbose=1,
+        save_freq='epoch',
+        save_best_only=True)
+
+    # train
+    history = model.fit(
+        dataloader['train'],
+        epochs=config['nb_epochs'],
+        validation_data=dataloader['valid'],
+        callbacks=[checkpoint,early_stopping],
+        class_weight=config['class_weight']
+    )
+
+    return history, model
 
 def test(model,dataloader):
     return True
