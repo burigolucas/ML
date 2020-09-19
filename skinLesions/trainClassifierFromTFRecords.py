@@ -6,6 +6,15 @@ import tensorflow as tf
 from tensorflow import keras
 import tensorflow.keras.applications.efficientnet as efn
 AUTO     = tf.data.experimental.AUTOTUNE
+MODELS = [
+    efn.EfficientNetB0,
+    efn.EfficientNetB1,
+    efn.EfficientNetB2,
+    efn.EfficientNetB3,
+    efn.EfficientNetB4,
+    efn.EfficientNetB5,
+    efn.EfficientNetB6
+]
 
 def _deserialize_example(example_proto):
     """
@@ -84,7 +93,7 @@ def read_dataset(files,config,augment=False):
     
 def build_model(config):
 
-    conv_base = efn.EfficientNetB5(
+    conv_base = MODELS[config['model_type']](
         input_shape=(None,None,3),
         weights='imagenet',
         include_top=False)
@@ -183,11 +192,14 @@ def main():
     IMG_SIZE = 192
     BATCH_SIZE = 64
     REPLICAS = 1
+    # EfficientNet type
+    MODEL_TYPE = 0
     config = {
         'img_size': IMG_SIZE,
         'batch_size': BATCH_SIZE,
         'replicas': REPLICAS,
-        'saved_model_path': 'model_EfficientNetB4fromTFRecords.h5',
+        'model_label': f'model_B{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_fold{fold}',
+        'model_type': MODEL_TYPE,
         'nb_epochs': 12,
         'patience': 5,
         'initial_bias': None,
