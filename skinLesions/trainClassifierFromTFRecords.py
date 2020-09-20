@@ -43,7 +43,19 @@ def _select_features(parsed_example,config,augment):
                          
     return img, target
 
+
+_augment_data = tf.keras.Sequential([
+    tf.keras.layers.experimental.preprocessing.RandomFlip("horizontal_and_vertical"),
+    tf.keras.layers.experimental.preprocessing.RandomRotation(0.2),
+#    tf.keras.layers.experimental.preprocessing.RandomZoom(0.1)
+])
+
 def _augment_image(img, config):
+
+    img = tf.image.random_hue(img, 0.01)
+    img = tf.image.random_saturation(img, 0.7, 1.3)
+    img = tf.image.random_contrast(img, 0.8, 1.2)
+    img = tf.image.random_brightness(img, 0.1)
 
     return img
 
@@ -86,6 +98,9 @@ def read_dataset(files,config,augment=False):
     ds = ds.map(lambda x: _select_features(x, config=config, augment=augment), num_parallel_calls=AUTO)
 
     ds = ds.batch(config['batch_size']*config['replicas'])
+    # augment data using Keras Sequential model on batch
+    if augment: 
+        ds = ds.map(lambda img, target: (_augment_data(img, training=True),target),num_parallel_calls=AUTO)
 
     ds = ds.prefetch(AUTO)
 
