@@ -154,7 +154,7 @@ def build_model(config):
 
     return conv_base, model
 
-def train(model,config,dataloader):
+def compile_model(model):
 
     opt = keras.optimizers.Adam(learning_rate=config['learning_rate'])
     loss = keras.losses.BinaryCrossentropy(label_smoothing=0.05) 
@@ -170,6 +170,10 @@ def train(model,config,dataloader):
     ]
 
     model.compile(optimizer=opt,loss=loss,metrics=metrics)
+
+    return model
+
+def train(model,config,dataloader):
 
     # callbacks
     early_stopping = tf.keras.callbacks.EarlyStopping(
@@ -255,7 +259,9 @@ def main():
     }
 
     conv_base, model = build_model(config = config)
-    model = train(
+    model = compile_model(model)
+
+    history, model = train(
         model = model,
         dataloader = dataloader,
         config = config)
