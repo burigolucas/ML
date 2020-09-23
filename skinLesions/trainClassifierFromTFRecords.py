@@ -1,10 +1,12 @@
 import numpy as np
-from sklearn.model_selection import train_test_split
+import json
+
+from sklearn.model_selection import KFold
 
 import tensorflow as tf
-
 from tensorflow import keras
-import tensorflow.keras.applications.efficientnet as efn
+from tensorflow.keras.callbacks import ModelCheckpoint
+
 AUTO     = tf.data.experimental.AUTOTUNE
 MODELS = [
     efn.EfficientNetB0,
@@ -213,60 +215,91 @@ def main():
     REPLICAS = 1
     # EfficientNet type
     MODEL_TYPE = 0
-    config = {
-        'img_size': IMG_SIZE,
-        'batch_size': BATCH_SIZE,
-        'replicas': REPLICAS,
-        'model_label': f'model_B{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_fold{fold}',
-        'model_type': MODEL_TYPE,
-        'nb_epochs': 12,
-        'patience': 5,
-        'initial_bias': None,
-        'class_weight': None,
-        'augment': False,
-        'multiple_size': True,
-        'dropout_rate': 0.2,
-    }
 
-    PATH = f"/data/melanoma/{IMG_SIZE}x{IMG_SIZE}"
+    skf = KFold(
+        n_splits=FOLDS,
+        shuffle=True,
+        random_state=SEED
+    )
+    
+    oof_val = []
+    settings = []
 
-    files = np.sort(np.array(tf.io.gfile.glob(PATH + '/train*.tfrec')))
+    for fold,(idxT,idxV) in enumerate(skf.split(np.arange(15))):
 
-    files_train, files_test = train_test_split(
-        files, test_size = 0.2, random_state = SEED)
+        print(f'[INFO] Initializing fold {fold}')
 
-    files_train, files_valid = train_test_split(
-        files_train, test_size = 0.2, random_state = SEED)
+        config = {
+            'img_size': IMG_SIZE,
+            'batch_size': BATCH_SIZE,
+            'replicas': REPLICAS,
+            'model_label': f'model_B{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_fold{fold}',
+            'model_type': MODEL_TYPE,
+            'nb_epochs': 15,
+            'patience': 5,
+            'initial_bias': None,
+            'class_weight': None,
+            'augment': False,
+            'multiple_size': True,
+            'dropout_rate': 0.2,
+            'learning_rate': 0.001,
+        }
 
-    print(f"Files train: {len(files_train)}")
-    print(f"Files valid: {len(files_valid)}")
-    print(f"Files test: {len(files_test)}")
+        # CREATE TRAIN AND VALIDATION SUBSETS
+        PATH = f"/data/melanoma/{IMG_SIZE}x{IMG_SIZE}"
+        files_train = tf.io.gfile.glob([PATH + '/train%.2i*.tfrec'%x for x in idxT])
+        np.random.shuffle(files_train); print('#'*25)
+        files_valid = tf.io.gfile.glob([PATH + '/train%.2i*.tfrec'%x for x in idxV])
+ 
+        ds_train = read_dataset(
+            files=files_train,
+            config=config,
+            augment=config['augment']
+        )
+        ds_valid = read_dataset(
+            files=files_valid,
+            config=config,
+            augment=False
+        )
 
-    ds_train = read_dataset(
-        files=files_train,
-        config=config)
-    ds_valid = read_dataset(
-        files=files_valid,
-        config=config)
-    ds_test  = read_dataset(
-        files=files_test,
-        config=config)
+        dataloader = {
+            'train': ds_train,
+            'valid': ds_valid            
+        }
 
-    dataloader = {
-        'train': ds_train,
-        'valid': ds_valid,
-        'test': ds_test
-    }
+        # clear session when building models in a loop
+        tf.keras.backend.clear_session()
 
-    conv_base, model = build_model(config = config)
-    model = compile_model(model)
+        conv_base, model = build_model(config = config)
+        model = compile_model(model)
 
-    history, model = train(
-        model = model,
-        dataloader = dataloader,
-        config = config)
+        history, model = train(
+            model = model,
+            dataloader = dataloader,
+            config = config)
 
-    test(model,dataloader)
+        # save settings to json file
+        fold_settings = {
+            'config': config,
+            'history': history.history,
+            'files': {
+                'train': files_train,
+                'valid': files_valid
+            }
+        }
+        settings.append(fold_settings)
+        json.dump(settings, open(f"model_B{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_results.json", 'w'))
+
+        # Report out of fold validation results
+        oof_val.append(np.max( history.history['val_auc'] ))
+        print(f'[INFO] Fold {fold} - OOF AUC = {oof_val[-1]:.3f}')
+    
+    print(f'[INFO] EfficientNet B{MODEL_TYPE} with image Size {IMG_SIZE} - Mean OOF AUC: {np.mean(oof_val):.4f}')
+    ix_max = np.argmax(oof_val); print(f"[INFO] Max OOF AUC {oof_val[ix_max]:.4f} for fold {ix_max}")
+    json.dump(
+        {'settings': settings, 'oof_val': oof_val},
+        open(f"model_B{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_results.json", 'w')
+    )
 
 if __name__ == '__main__':
     main()
