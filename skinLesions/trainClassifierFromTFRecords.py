@@ -89,13 +89,16 @@ def _prepare_image(img, config, augment):
 
     return img
 
-def read_dataset(files,config,augment=False):
+def read_dataset(files,config,augment=False,shuffle=False):
     """
     Read and deserialize the dataset from TFRecord files
     """
     # retrieve raw dataset
     ds  = tf.data.TFRecordDataset(files, num_parallel_reads=AUTO)
     ds = ds.cache()
+
+    if shuffle:
+        ds = ds.shuffle(1000)
 
     # parse raw dataset
     ds = ds.map(_deserialize_example, num_parallel_calls=AUTO)
@@ -268,7 +271,8 @@ def main():
         ds_train = read_dataset(
             files=files_train,
             config=config,
-            augment=config['augment']
+            augment=config['augment'],
+            shuffle=True
         )
         ds_valid = read_dataset(
             files=files_valid,
