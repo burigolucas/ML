@@ -6,6 +6,8 @@ from sklearn.model_selection import KFold
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.callbacks import ModelCheckpoint
+#import tensorflow.keras.applications.efficientnet as efn # requires tensorflow 2.3.0
+import efficientnet.tfkeras as efn
 
 AUTO     = tf.data.experimental.AUTOTUNE
 MODELS = [
