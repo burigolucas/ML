@@ -106,8 +106,11 @@ def read_dataset(files,config,augment=False,shuffle=False):
 
     ds = ds.batch(config['batch_size']*config['replicas'])
     # augment data using Keras Sequential model on batch
-    if augment: 
-        ds = ds.map(lambda img, target: (_augment_data(img, training=True),target),num_parallel_calls=AUTO)
+    if augment:
+        if config['multiple_size']:
+            ds = ds.map(lambda imgs, target: ((_augmentations(imgs[0], training=True),_augmentations(imgs[1], training=True),_augmentations(imgs[2], training=True),_augmentations(imgs[3], training=True)),target),num_parallel_calls=AUTO)
+        else:
+            ds = ds.map(lambda img, target: (_augmentations(img, training=True),target),num_parallel_calls=AUTO)
 
     ds = ds.prefetch(AUTO)
 
