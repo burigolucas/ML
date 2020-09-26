@@ -288,6 +288,28 @@ def main():
             'valid': ds_valid            
         }
 
+        # Handling imbalance data
+        # check: https://www.tensorflow.org/tutorials/structured_data/imbalanced_data
+        pos = 0
+        tot = 0
+        for _,labels in ds_train:
+            tot += labels.shape[0]
+            pos += labels.numpy().sum()
+        neg = tot - pos
+        print(f'Class imbalance: {pos/tot:f}')
+        config['initial_bias'] = np.log([pos/neg]).tolist()
+
+        # Scaling by total/2 helps keep the loss to a similar magnitude.
+        # The sum of the weights of all examples stays the same.
+        weight_for_0 = (1 / neg)*(tot)/2.0 
+        weight_for_1 = (1 / pos)*(tot)/2.0
+
+        class_weight = {0: weight_for_0, 1: weight_for_1}
+        config['class_weight'] = class_weight
+
+        print('Weight for class 0: {:.2f}'.format(weight_for_0))
+        print('Weight for class 1: {:.2f}'.format(weight_for_1))
+
         # clear session when building models in a loop
         tf.keras.backend.clear_session()
 
