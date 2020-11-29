@@ -56,10 +56,10 @@ def _select_features(parsed_example, config, augment):
     return img, target
 
 
-_augment_data = tf.keras.Sequential([
+_augmentation_model = tf.keras.Sequential([
     tf.keras.layers.experimental.preprocessing.RandomFlip("horizontal_and_vertical"),
-    tf.keras.layers.experimental.preprocessing.RandomRotation(0.2),
-#    tf.keras.layers.experimental.preprocessing.RandomZoom(0.1)
+    tf.keras.layers.experimental.preprocessing.RandomRotation(factor=(0., 0.25)),
+    # tf.keras.layers.experimental.preprocessing.RandomZoom(0.1)
 ])
 
 
@@ -125,14 +125,14 @@ def read_dataset(files, config, augment=False, shuffle=False):
         if config['multiple_size']:
             ds = ds.map(lambda imgs, target: (
                 (
-                    _augmentations(imgs[0], training=True),
-                    _augmentations(imgs[1], training=True),
-                    _augmentations(imgs[2], training=True),
-                    _augmentations(imgs[3], training=True)
+                    _augmentation_model(imgs[0], training=True),
+                    _augmentation_model(imgs[1], training=True),
+                    _augmentation_model(imgs[2], training=True),
+                    _augmentation_model(imgs[3], training=True)
                 ), target), num_parallel_calls=AUTO)
         else:
             ds = ds.map(lambda img, target: (
-                _augmentations(img, training=True), target), num_parallel_calls=AUTO)
+                _augmentation_model(img, training=True), target), num_parallel_calls=AUTO)
 
     ds = ds.prefetch(AUTO)
 
@@ -260,6 +260,7 @@ def main():
     IMG_SIZE = 768
     BATCH_SIZE = 64
     FOLDS = 5
+    AUGMENT = False
 
     strategy = get_strategy(DEVICE)
     REPLICAS = 1
@@ -291,7 +292,7 @@ def main():
             'patience': 5,
             'initial_bias': None,
             'class_weight': None,
-            'augment': False,
+            'augment': AUGMENT,
             'multiple_size': True,
             'dropout_rate': 0.2,
             'learning_rate': 0.001,
@@ -324,7 +325,7 @@ def main():
         # check: https://www.tensorflow.org/tutorials/structured_data/imbalanced_data
         pos = 0
         tot = 0
-        for _,labels in ds_train:
+        for _, labels in ds_train:
             tot += labels.shape[0]
             pos += labels.numpy().sum()
         neg = tot - pos
