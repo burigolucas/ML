@@ -46,6 +46,7 @@ def _select_features(parsed_example, config, augment):
     """
     Select features
     """
+
     img = _prepare_image(
         parsed_example['image'],
         config=config,
@@ -64,6 +65,9 @@ _augmentation_model = tf.keras.Sequential([
 
 
 def _augment_image(img, config):
+    """
+    Augment images
+    """
 
     img = tf.image.random_hue(img, 0.01)
     img = tf.image.random_saturation(img, 0.7, 1.3)
@@ -74,6 +78,9 @@ def _augment_image(img, config):
 
 
 def _prepare_image(img, config, augment):
+    """
+    Prepare images
+    """
 
     dim = config['img_size']
 
@@ -104,6 +111,7 @@ def read_dataset(files, config, augment=False, shuffle=False):
     """
     Read and deserialize the dataset from TFRecord files
     """
+
     # retrieve raw dataset
     ds = tf.data.TFRecordDataset(files, num_parallel_reads=AUTO)
     ds = ds.cache()
@@ -133,7 +141,7 @@ def read_dataset(files, config, augment=False, shuffle=False):
         else:
             ds = ds.map(lambda img, target: (
                 _augmentation_model(img, training=True), target
-                _augmentation_model(img, training=True), target), num_parallel_calls=AUTO)
+                ), num_parallel_calls=AUTO)
 
     ds = ds.prefetch(AUTO)
 
@@ -203,6 +211,9 @@ def build_model(config):
 
 
 def compile_model(model, config):
+    """
+    Compile model for training
+    """
 
     opt = keras.optimizers.Adam(learning_rate=config['learning_rate'])
     loss = keras.losses.BinaryCrossentropy(label_smoothing=0.05) 
@@ -223,6 +234,9 @@ def compile_model(model, config):
 
 
 def train(model, config, dataloader):
+    """
+    Train model
+    """
 
     # callbacks
     early_stopping = tf.keras.callbacks.EarlyStopping(
@@ -294,7 +308,8 @@ def main():
     DEVICE = 'TPU'
     SEED = 42
     IMG_SIZE = 768
-    BATCH_SIZE = 64
+    MULTIPLE_IMG_SIZE = False
+    BATCH_SIZE = 32
     FOLDS = 5
     AUGMENT = False
 
@@ -305,6 +320,7 @@ def main():
     # EfficientNet type
     MODEL_TYPE = 0
 
+    PATH = "./data/ISIC2020"
     skf = KFold(
         n_splits=FOLDS,
         shuffle=True,
@@ -320,6 +336,7 @@ def main():
 
         config = {
             'img_size': IMG_SIZE,
+            'multiple_size': MULTIPLE_IMG_SIZE,
             'batch_size': BATCH_SIZE,
             'replicas': REPLICAS,
             'model_label': f'model_B{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_fold{fold}',
@@ -329,16 +346,18 @@ def main():
             'initial_bias': None,
             'class_weight': None,
             'augment': AUGMENT,
-            'multiple_size': True,
             'dropout_rate': 0.2,
             'learning_rate': 0.001,
         }
 
         # CREATE TRAIN AND VALIDATION SUBSETS
-        PATH = f"/data/melanoma/{IMG_SIZE}x{IMG_SIZE}"
-        files_train = tf.io.gfile.glob([PATH + '/train%.2i*.tfrec'%x for x in idxT])
-        np.random.shuffle(files_train); print('#'*25)
-        files_valid = tf.io.gfile.glob([PATH + '/train%.2i*.tfrec'%x for x in idxV])
+        files_train = tf.io.gfile.glob(
+            [PATH + '/train%.2i*.tfrec' % x for x in idxT])
+        np.random.shuffle(files_train)
+
+        files_valid = tf.io.gfile.glob(
+            [PATH + '/train%.2i*.tfrec'%x for x in idxV])
+
  
         ds_train = read_dataset(
             files=files_train,
@@ -365,7 +384,7 @@ def main():
             tot += labels.shape[0]
             pos += labels.numpy().sum()
         neg = tot - pos
-        print(f'Class imbalance: {pos/tot:f}')
+        print(f'[INFO] Class imbalance: {pos/tot:f}')
         config['initial_bias'] = np.log([pos/neg]).tolist()
 
         # Scaling by total/2 helps keep the loss to a similar magnitude.
@@ -376,12 +395,14 @@ def main():
         class_weight = {0: weight_for_0, 1: weight_for_1}
         config['class_weight'] = class_weight
 
-        print('Weight for class 0: {:.2f}'.format(weight_for_0))
-        print('Weight for class 1: {:.2f}'.format(weight_for_1))
+        print('[INFO] Weight for class 0: {:.2f}'.format(weight_for_0))
+        print('[INFO] Weight for class 1: {:.2f}'.format(weight_for_1))
+
 
         # clear session when building models in a loop
         tf.keras.backend.clear_session()
 
+        with strategy.scope():
         conv_base, model = build_model(config=config)
         model = compile_model(model, config)
 
