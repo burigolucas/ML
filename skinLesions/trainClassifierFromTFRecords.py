@@ -132,6 +132,7 @@ def read_dataset(files, config, augment=False, shuffle=False):
                 ), target), num_parallel_calls=AUTO)
         else:
             ds = ds.map(lambda img, target: (
+                _augmentation_model(img, training=True), target
                 _augmentation_model(img, training=True), target), num_parallel_calls=AUTO)
 
     ds = ds.prefetch(AUTO)
@@ -253,6 +254,41 @@ def train(model, config, dataloader):
 def test(model,dataloader):
     return True
 
+
+def get_strategy(device):
+    """
+    Return device-specific strategy
+    """
+
+    if device == "TPU":
+        print("[INFO] Connecting to TPU...")
+        try:
+            tpu = tf.distribute.cluster_resolver.TPUClusterResolver()
+            print('[INFO] Running on TPU ', tpu.master())
+        except ValueError:
+            print("[INFO] Could not connect to TPU")
+            tpu = None
+
+        if tpu:
+            try:
+                print("[INFO] Initializing TPU ...")
+                tf.config.experimental_connect_to_cluster(tpu)
+                tf.tpu.experimental.initialize_tpu_system(tpu)
+                strategy = tf.distribute.experimental.TPUStrategy(tpu)
+                print("[INFO] TPU initialized")
+            except:
+                print("[INFO] Failed to initialize TPU")
+        else:
+            device = "GPU"
+
+    if device != "TPU":
+        print("[INFO] Using default strategy for CPU and single GPU")
+        strategy = tf.distribute.get_strategy()
+
+    if device == "GPU":
+        print("[INFO] Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
+
+    return strategy
 def main():
 
     DEVICE = 'TPU'
