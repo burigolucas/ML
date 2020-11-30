@@ -8,8 +8,12 @@ from sklearn.model_selection import KFold
 import tensorflow as tf
 from tensorflow import keras
 from tensorflow.keras.callbacks import ModelCheckpoint
-# import tensorflow.keras.applications.efficientnet as efn # requires tensorflow 2.3.0
+# EfficientNet
 import efficientnet.tfkeras as efn
+# import tensorflow.keras.applications.efficientnet as efn # requires tensorflow 2.3.0
+# MobileNet
+from tensorflow.keras.applications import MobileNet
+from tensorflow.keras.applications import MobileNetV2
 
 AUTO = tf.data.experimental.AUTOTUNE
 MODELS = [
@@ -19,7 +23,9 @@ MODELS = [
     efn.EfficientNetB3,
     efn.EfficientNetB4,
     efn.EfficientNetB5,
-    efn.EfficientNetB6
+    efn.EfficientNetB6,
+    MobileNet,
+    MobileNetV2,
 ]
 
 
@@ -316,11 +322,13 @@ def main():
     strategy = get_strategy(DEVICE)
     REPLICAS = 1
     REPLICAS = strategy.num_replicas_in_sync
-    print(f'REPLICAS: {REPLICAS}')
-    # EfficientNet type
-    MODEL_TYPE = 0
+    print(f'[INFO] REPLICAS: {REPLICAS}')
+    # Model type
+    # 0-6: EfficientNet B0-B6
+    # 7-8: MobileNet V1, V2
+    MODEL_TYPE = 7
 
-    PATH = "./data/ISIC2020"
+    PATH = f"./data/ISIC2020-{IMG_SIZE}x{IMG_SIZE}"
     skf = KFold(
         n_splits=FOLDS,
         shuffle=True,
@@ -427,7 +435,7 @@ def main():
         oof_val.append(np.max( history.history['val_auc'] ))
         print(f'[INFO] Fold {fold} - OOF AUC = {oof_val[-1]:.3f}')
     
-    print(f'[INFO] EfficientNet B{MODEL_TYPE} with image Size {IMG_SIZE} - Mean OOF AUC: {np.mean(oof_val):.4f}')
+    print(f'[INFO] MODEL_TYPE {MODEL_TYPE} with image Size {IMG_SIZE} - Mean OOF AUC: {np.mean(oof_val):.4f}')
     ix_max = np.argmax(oof_val); print(f"[INFO] Max OOF AUC {oof_val[ix_max]:.4f} for fold {ix_max}")
     json.dump(
         {'settings': settings, 'oof_val': oof_val},
