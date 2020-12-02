@@ -15,6 +15,7 @@ import efficientnet.tfkeras as efn
 from tensorflow.keras.applications import MobileNet
 from tensorflow.keras.applications import MobileNetV2
 
+
 AUTO = tf.data.experimental.AUTOTUNE
 MODELS = [
     efn.EfficientNetB0,
@@ -27,6 +28,25 @@ MODELS = [
     MobileNet,
     MobileNetV2,
 ]
+
+FINE_TUNING_LAYERS = {
+    'efficientnet-b0': 'block7a',
+    'efficientnet-b1': 'block7b',
+    'efficientnet-b2': 'block7b',
+    'efficientnet-b3': 'block7b',
+    'efficientnet-b4': 'block7b',
+    'efficientnet-b5': 'block7c',
+    'efficientnet-b6': 'block7c',
+    'efficientnetb0': 'block7a',
+    'efficientnetb1': 'block7b',
+    'efficientnetb2': 'block7b',
+    'efficientnetb3': 'block7b',
+    'efficientnetb4': 'block7b',
+    'efficientnetb5': 'block7c',
+    'efficientnetb6': 'block7c',
+    'mobilenet_1.00_224': '_13',
+    'mobilenetv2_1.00_224': 'block_16',
+}
 
 
 def _deserialize_example(example_proto):
@@ -355,7 +375,7 @@ def main():
             'class_weight': None,
             'augment': AUGMENT,
             'dropout_rate': 0.2,
-            'learning_rate': 0.001,
+            'learning_rate': 0.001
         }
 
         # CREATE TRAIN AND VALIDATION SUBSETS
