@@ -367,7 +367,7 @@ def main():
             'multiple_size': MULTIPLE_IMG_SIZE,
             'batch_size': BATCH_SIZE,
             'replicas': REPLICAS,
-            'model_label': f'model_B{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_fold{fold}',
+            'model_label': f'model_{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_fold{fold}',
             'model_type': MODEL_TYPE,
             'nb_epochs': 15,
             'patience': 5,
@@ -449,17 +449,18 @@ def main():
             }
         }
         settings.append(fold_settings)
-        json.dump(settings, open(f"model_B{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_results.json", 'w'))
+        json.dump(settings, open(f"model_{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_results.json", 'w'))
 
         # Report out of fold validation results
         oof_val.append(np.max( history.history['val_auc'] ))
         print(f'[INFO] Fold {fold} - OOF AUC = {oof_val[-1]:.3f}')
     
-    print(f'[INFO] MODEL_TYPE {MODEL_TYPE} with image Size {IMG_SIZE} - Mean OOF AUC: {np.mean(oof_val):.4f}')
+    print(f"[INFO] IMG_SIZE {IMG_SIZE} - MULTIPLE_IMG_SIZE {MULTIPLE_IMG_SIZE:d} - AUGMENT {AUGMENT:d} - FINE_TUNING {FINE_TUNING:d} - LR {config['learning_rate']}")
+    print(f'[INFO] MODEL {conv_base.name} with image Size {IMG_SIZE} - Mean OOF AUC: {np.mean(oof_val):.4f}')
     ix_max = np.argmax(oof_val); print(f"[INFO] Max OOF AUC {oof_val[ix_max]:.4f} for fold {ix_max}")
     json.dump(
         {'settings': settings, 'oof_val': oof_val},
-        open(f"model_B{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_results.json", 'w')
+        open(f"model_{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_results.json", 'w')
     )
 
 
