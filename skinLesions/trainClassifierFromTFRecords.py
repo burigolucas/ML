@@ -329,6 +329,26 @@ def get_strategy(device):
         print("[INFO] Num GPUs Available: ", len(tf.config.experimental.list_physical_devices('GPU')))
 
     return strategy
+
+
+def enable_fine_tunning(conv_base, config):
+    """
+    Turn on fine tuning in CNN base
+    """
+
+    conv_base.trainable = True
+
+    set_trainable = False
+    for layer in conv_base.layers:
+        if FINE_TUNING_LAYERS[conv_base.name] in layer.name:
+            set_trainable = True
+        if set_trainable:
+            layer.trainable = True
+            print(f"[INFO] Setting {layer.name} trainable")
+        else:
+            layer.trainable = False
+
+
 def main():
 
     DEVICE = 'TPU'
@@ -338,6 +358,7 @@ def main():
     BATCH_SIZE = 32
     FOLDS = 5
     AUGMENT = False
+    FINE_TUNING = False
 
     strategy = get_strategy(DEVICE)
     REPLICAS = 1
@@ -439,10 +460,22 @@ def main():
             dataloader=dataloader,
             config=config)
 
+            if FINE_TUNING:
+                config['learning_rate'] = config['learning_rate']/10
+                config['nb_epochs'] = 5
+                config['model_label'] = f"{config['model_label']}_fineTunned.h5"
+                enable_fine_tunning(conv_base, config)
+                model = compile_model(model, config)
+                history_fine, model = train(
+                    model=model,
+                    dataloader=dataloader,
+                    config=config)
+
         # save settings to json file
         fold_settings = {
             'config': config,
             'history': history.history,
+            'history_fine': history_fine.history if FINE_TUNING else None,
             'files': {
                 'train': files_train,
                 'valid': files_valid
@@ -452,7 +485,11 @@ def main():
         json.dump(settings, open(f"model_{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_results.json", 'w'))
 
         # Report out of fold validation results
-        oof_val.append(np.max( history.history['val_auc'] ))
+
+        if FINE_TUNING:
+            oof_val.append(np.max(history.history['val_auc'] + history_fine.history['val_auc']))
+        else:
+            oof_val.append(np.max(history.history['val_auc']))
         print(f'[INFO] Fold {fold} - OOF AUC = {oof_val[-1]:.3f}')
     
     print(f"[INFO] IMG_SIZE {IMG_SIZE} - MULTIPLE_IMG_SIZE {MULTIPLE_IMG_SIZE:d} - AUGMENT {AUGMENT:d} - FINE_TUNING {FINE_TUNING:d} - LR {config['learning_rate']}")
