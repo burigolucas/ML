@@ -112,7 +112,7 @@ def _prepare_image(img, config, augment):
 
     # Decode jpeg image
     img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.cast(img, tf.float32) / 255.0
+    img = tf.cast(img, tf.float32)
     
     if augment:
         img = _augment_image(img, config)
