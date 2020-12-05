@@ -291,8 +291,69 @@ def train(model, config, dataloader):
 
     return history, model
 
-def test(model,dataloader):
-    return True
+
+def test(model, dataloader):
+    """
+    Test model
+    """
+
+
+    return
+
+
+def plot_history(history, config):
+    """
+    Plot training history to file
+    """
+
+    # Plot training and validation history
+    train_acc = history.history['accuracy']
+    val_acc = history.history['val_accuracy']
+    train_prec = history.history['precision']
+    val_prec = history.history['val_precision']
+    train_rec = history.history['recall']
+    val_rec = history.history['val_recall']
+    train_auc = history.history['auc']
+    val_auc = history.history['val_auc']
+
+    plt.figure(figsize=(8, 8))
+    plt.subplot(2, 2, 1)
+    plt.plot(train_acc, label='Training')
+    plt.plot(val_acc, label='Validation')
+    plt.legend(loc='lower left')
+    plt.ylabel('Accuracy')
+    plt.ylim([0, 1.0])
+    # plt.title('Accuracy')
+
+    plt.subplot(2, 2, 2)
+    plt.plot(train_prec, label='Training')
+    plt.plot(val_prec, label='Validation')
+    plt.legend(loc='upper left')
+    plt.ylabel('Precision')
+    plt.ylim([0, 1.0])
+    # plt.title('Training and Validation Precision')
+    plt.xlabel('epoch')
+
+    plt.subplot(2, 2, 3)
+    plt.plot(train_rec, label='Training')
+    plt.plot(val_rec, label='Validation')
+    plt.legend(loc='upper left')
+    plt.ylabel('Recall')
+    plt.ylim([0, 1.0])
+    # plt.title('Training and Validation Recall')
+
+    plt.subplot(2, 2, 4)
+    plt.plot(train_auc, label='Training')
+    plt.plot(val_auc, label='Validation')
+    plt.legend(loc='upper left')
+    plt.ylabel('AUC')
+    plt.ylim([0, 1.0])
+    # plt.title('Training and Validation AUC')
+    plt.xlabel('epoch')
+
+    plt.savefig(f"{config['model_label']}.png")
+
+
 
 
 def get_strategy(device):
