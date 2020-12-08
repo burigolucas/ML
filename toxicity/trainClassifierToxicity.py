@@ -16,7 +16,7 @@ EMBEDDING_DIM = 16
 IDENTITY_COLUMNS = [
 TEXT_COLUMN = 'comment_text'
 TARGET_COLUMN = 'target'
-CHARS_TO_REMOVE = '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n“”’\'∞θ÷α•à−β∅³π‘₹´°£€\×™√²—'
+
 SEED = 42
 
 # Load raw data
@@ -28,7 +28,8 @@ DATASET_SIZE = df.shape[0]
 target = df.pop(TARGET_COLUMN).round().astype('int')
 text = df.pop(TEXT_COLUMN)
 dataset = tf.data.Dataset.from_tensor_slices(
-    (text.values, target.values)).batch(batch_size=BATCH_SIZE)
+    (text.values, target.values))
+
 
 # Split train/valid/test datasets
 train_size = int(0.7 * DATASET_SIZE)
@@ -39,3 +40,15 @@ train_ds = dataset.take(train_size)
 test_ds = dataset.skip(train_size)
 valid_ds = test_ds.skip(test_size)
 test_ds = test_ds.take(test_size)
+
+# Configure the dataset for performance
+AUTOTUNE = tf.data.experimental.AUTOTUNE
+
+train_ds = train_ds.batch(
+    batch_size=BATCH_SIZE).cache().prefetch(buffer_size=AUTOTUNE)
+valid_ds = valid_ds.batch(
+    batch_size=BATCH_SIZE).cache().prefetch(buffer_size=AUTOTUNE)
+test_ds = test_ds.batch(batch_size=BATCH_SIZE).cache().prefetch(
+    buffer_size=AUTOTUNE)
+
+
