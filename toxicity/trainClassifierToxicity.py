@@ -17,6 +17,8 @@ IDENTITY_COLUMNS = [
 TEXT_COLUMN = 'comment_text'
 TARGET_COLUMN = 'target'
 
+CHARS_TO_REMOVE = '!"#$%&()*+,-./:;<=>?@[\\]^_`{|}~\t\n“”’\'∞θ÷α•à−β∅³π‘₹´°£€™√²—'
+
 SEED = 42
 
 # Load raw data
@@ -51,4 +53,34 @@ valid_ds = valid_ds.batch(
 test_ds = test_ds.batch(batch_size=BATCH_SIZE).cache().prefetch(
     buffer_size=AUTOTUNE)
 
+
+def standardize_text(input_data):
+    lowercase = tf.strings.lower(input_data)
+    stripped_text = tf.strings.regex_replace(
+        lowercase, f'[{CHARS_TO_REMOVE}]', ' ')
+    return tf.strings.regex_replace(
+        stripped_text,
+        '[%s]' % re.escape(string.punctuation),
+        '')
+
+
+vectorize_layer = TextVectorization(
+    standardize=standardize_text,
+    max_tokens=MAX_FEATURES,
+    output_mode='int',
+    output_sequence_length=MAX_SEQ_LEN)
+
+train_text = train_ds.map(lambda x, y: x)
+vectorize_layer.adapt(train_text)
+
+
+def vectorize_text(text, label):
+    text = tf.expand_dims(text, -1)
+    return vectorize_layer(text), label
+
+
+
+train_ds = train_ds.map(vectorize_text)
+valid_ds = valid_ds.map(vectorize_text)
+test_ds = test_ds.map(vectorize_text)
 
