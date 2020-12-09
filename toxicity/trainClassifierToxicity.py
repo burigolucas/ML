@@ -8,12 +8,11 @@ import string
 
 INPUT_PATH = 'input/'
 
-BATCH_SIZE = 32
-EPOCHS = 10
+BATCH_SIZE = 64
+EPOCHS = 30
 MAX_FEATURES = 10000
-MAX_SEQ_LEN = 250
-EMBEDDING_DIM = 16
-IDENTITY_COLUMNS = [
+MAX_SEQ_LEN = 200
+EMBEDDING_DIM = 50
 TEXT_COLUMN = 'comment_text'
 TARGET_COLUMN = 'target'
 
@@ -84,3 +83,32 @@ train_ds = train_ds.map(vectorize_text)
 valid_ds = valid_ds.map(vectorize_text)
 test_ds = test_ds.map(vectorize_text)
 
+opt = optimizers.Adam()
+
+early_stopping = tf.keras.callbacks.EarlyStopping(
+    monitor='val_accuracy',
+    mode='max',
+    patience=2,
+    verbose=1,
+    restore_best_weights=True
+)
+
+# Create the model
+modelV0 = tf.keras.Sequential([
+    layers.Embedding(MAX_FEATURES + 1, EMBEDDING_DIM),
+    layers.Dropout(0.2),
+    layers.GlobalAveragePooling1D(),
+    layers.Dropout(0.2),
+    layers.Dense(1)])
+lossV0 = losses.BinaryCrossentropy(from_logits=True)
+metricsV0 = [
+    tf.metrics.BinaryAccuracy(name='accuracy'),
+]
+modelV0.compile(
+    loss=lossV0,
+    optimizer=opt,
+    metrics=metricsV0)
+historyV0 = modelV0.fit(
+    train_ds,
+    validation_data=valid_ds,
+    epochs=EPOCHS)
