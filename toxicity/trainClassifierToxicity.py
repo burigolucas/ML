@@ -8,11 +8,11 @@ import string
 
 INPUT_PATH = 'input/'
 
-BATCH_SIZE = 64
-EPOCHS = 30
+BATCH_SIZE = 2048
+EPOCHS = 50
 MAX_FEATURES = 10000
 MAX_SEQ_LEN = 200
-EMBEDDING_DIM = 50
+EMBEDDING_DIM = 64
 TEXT_COLUMN = 'comment_text'
 TARGET_COLUMN = 'target'
 
@@ -28,6 +28,8 @@ DATASET_SIZE = df.shape[0]
 # Generate TF dataset
 target = df.pop(TARGET_COLUMN).round().astype('int')
 text = df.pop(TEXT_COLUMN)
+lenComm = text.str.split().map(len)
+lenComm.describe()
 dataset = tf.data.Dataset.from_tensor_slices(
     (text.values, target.values))
 
@@ -88,7 +90,7 @@ opt = optimizers.Adam()
 early_stopping = tf.keras.callbacks.EarlyStopping(
     monitor='val_accuracy',
     mode='max',
-    patience=2,
+    patience=5,
     verbose=1,
     restore_best_weights=True
 )
