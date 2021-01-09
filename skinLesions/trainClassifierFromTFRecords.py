@@ -356,7 +356,6 @@ def test(model, dataloader):
     eval_metrics = model.evaluate(dataloader['test'], return_dict=True)
 
     return eval_metrics
-    return
 
 
 def plot_history(history, config):
