@@ -164,10 +164,6 @@ def read_dataset(files, config, augment=False, shuffle=False, labeled=True, retu
     if shuffle:
         ds = ds.shuffle(1000)
 
-    # # parse raw dataset
-    # ds = ds.batch(batch_size)
-    # ds = ds.map(_deserialize_batch_examples)
-
     # parse raw dataset
     ds = ds.map(lambda x: _deserialize_example(
         x,
@@ -425,163 +421,6 @@ def plot_history(history, config):
     plt.xlabel('epoch')
 
     plt.savefig(f"{config['model_label']}.png")
-
-
-def build_model_v3(config):
-
-    dim1 = config['img_size']
-    dim2 = int(dim1/2)
-    dim3 = int(dim1/3)
-    dim4 = int(dim1/4)
-    inp1 = keras.layers.Input(shape=(dim1, dim1, 3))
-    inp2 = keras.layers.Input(shape=(dim2, dim2, 3))
-    inp3 = keras.layers.Input(shape=(dim3, dim3, 3))
-    inp4 = keras.layers.Input(shape=(dim4, dim4, 3))
-    inp = (inp1, inp2, inp3, inp4)
-
-    conv_base1 = efn.EfficientNetB4(
-        input_shape=(None, None, 3),
-        weights='imagenet',
-        include_top=False)
-    conv_base1.trainable = False
-    conv_base2 = efn.EfficientNetB5(
-        input_shape=(None, None, 3),
-        weights='imagenet',
-        include_top=False)
-    conv_base2.trainable = False
-    for layer in conv_base1.layers:
-        layer._name = layer.name + str("_1")
-    for layer in conv_base2.layers:
-        layer._name = layer.name + str("_2")
-
-    x11 = conv_base1(inp1)
-    x11 = keras.layers.GlobalAveragePooling2D()(x11)
-    x12 = conv_base1(inp2)
-    x12 = keras.layers.GlobalAveragePooling2D()(x12)
-    x13 = conv_base1(inp3)
-    x13 = keras.layers.GlobalAveragePooling2D()(x13)
-    x14 = conv_base1(inp4)
-    x14 = keras.layers.GlobalAveragePooling2D()(x14)
-
-    x21 = conv_base2(inp1)
-    x21 = keras.layers.GlobalAveragePooling2D()(x21)
-    x22 = conv_base2(inp2)
-    x22 = keras.layers.GlobalAveragePooling2D()(x22)
-    x23 = conv_base2(inp3)
-    x23 = keras.layers.GlobalAveragePooling2D()(x23)
-    x24 = conv_base2(inp4)
-    x24 = keras.layers.GlobalAveragePooling2D()(x24)
-
-    x = keras.layers.concatenate([
-        x11, x12, x13, x14,
-        x21, x22, x23, x24,
-    ])
-
-    if config['dropout_rate'] > 0:
-        x = keras.layers.Dropout(config['dropout_rate'])(x)
-    output_bias = config['initial_bias']
-    if output_bias is not None:
-        output_bias = tf.keras.initializers.Constant(output_bias)
-    x = keras.layers.Dense(
-        1,
-        activation='sigmoid',
-        bias_initializer=output_bias)(x)
-
-    model = keras.Model(inputs=inp, outputs=x)
-
-    return model
-
-
-def build_model_old(config):
-
-    dim = config['img_size']
-    inp = keras.layers.Input(shape=(dim, dim, 3))
-
-    conv_base = MODELS[config['model_type']](
-        input_shape=(None, None, 3),
-        weights='imagenet',
-        include_top=False)
-    conv_base.trainable = False
-
-    if config['multiple_size']:
-        dim1 = int(dim/1)
-        dim2 = int(dim/2)
-        dim3 = int(dim/3)
-        dim4 = int(dim/4)
-
-        resize1 = tf.keras.layers.experimental.preprocessing.Resizing(
-            dim1, dim1)
-        resize2 = tf.keras.layers.experimental.preprocessing.Resizing(
-            dim2, dim2)
-        resize3 = tf.keras.layers.experimental.preprocessing.Resizing(
-            dim3, dim3)
-        resize4 = tf.keras.layers.experimental.preprocessing.Resizing(
-            dim4, dim4)
-
-        x1 = resize1(inp)
-        x1 = conv_base(x1, training=False)
-        x1 = keras.layers.GlobalAveragePooling2D()(x1)
-        x2 = resize2(inp)
-        x2 = conv_base(x2, training=False)
-        x2 = keras.layers.GlobalAveragePooling2D()(x2)
-        x3 = resize3(inp)
-        x3 = conv_base(x3, training=False)
-        x3 = keras.layers.GlobalAveragePooling2D()(x3)
-        x4 = resize4(inp)
-        x4 = conv_base(x4, training=False)
-        x4 = keras.layers.GlobalAveragePooling2D()(x4)
-
-        x = keras.layers.concatenate([x1, x2, x3, x4])
-        x1 = resize1(inp)
-        x1 = conv_base(x1, training=False)
-        x1 = keras.layers.GlobalAveragePooling2D()(x1)
-        x2 = resize2(inp)
-        x2 = conv_base(x2, training=False)
-        x2 = keras.layers.GlobalAveragePooling2D()(x2)
-        x3 = resize3(inp)
-        x3 = conv_base(x3, training=False)
-        x3 = keras.layers.GlobalAveragePooling2D()(x3)
-        x4 = resize4(inp)
-        x4 = conv_base(x4, training=False)
-        x4 = keras.layers.GlobalAveragePooling2D()(x4)
-
-        x = keras.layers.concatenate([x1, x2, x3, x4])
-    else:
-        x = conv_base(inp, training=False)
-        x = keras.layers.GlobalAveragePooling2D()(x)
-
-    if config['dropout_rate'] > 0:
-        x = keras.layers.Dropout(config['dropout_rate'])(x)
-    output_bias = config['initial_bias']
-    if output_bias is not None:
-        output_bias = tf.keras.initializers.Constant(output_bias)
-    x = keras.layers.Dense(
-        1,
-        activation='sigmoid',
-        bias_initializer=output_bias)(x)
-
-    model = keras.Model(inputs=inp, outputs=x)
-
-    return conv_base, model
-
-
-def _deserialize_batch_examples(examples_proto):
-    """
-    Parse batch of example protocol buffers
-    """
-
-    feature_description = {
-        'image': tf.io.FixedLenFeature([], tf.string),
-        'image_name': tf.io.FixedLenFeature([], tf.string),
-        'patient_id': tf.io.FixedLenFeature([], tf.int64),
-        'sex': tf.io.FixedLenFeature([], tf.int64),
-        'age_approx': tf.io.FixedLenFeature([], tf.int64),
-        'anatom_site_general_challenge': tf.io.FixedLenFeature([], tf.int64),
-        'diagnosis': tf.io.FixedLenFeature([], tf.int64),
-        'target': tf.io.FixedLenFeature([], tf.int64)
-    }
-
-    return tf.io.parse_example(examples_proto, feature_description)
 
 
 def _get_transformation_matrix(rotation, shear, height_zoom, width_zoom, height_shift, width_shift):
@@ -893,7 +732,7 @@ def main():
             if FINE_TUNING:
                 config['learning_rate'] = config['learning_rate']/10
                 config['nb_epochs'] = 5
-                config['model_label'] = f"{config['model_label']}_fineTunned.h5"
+                config['model_label'] = f"{config['model_label']}_fineTunned"
                 enable_fine_tunning(conv_base, config)
                 model = compile_model(model, config)
                 history_fine, model = train(
@@ -903,9 +742,8 @@ def main():
                 history_fine = history_fine.history
                 history_fine['lr'] = [float(lr) for lr in history_fine['lr']]
 
-            # print('Loading best model...')
+            print('Making predictions...')
             model.load_weights(f"{config['model_label']}.h5")
-            # SavedModel
             predictions = model.predict(dataloader['test'])
             preds.append(predictions.squeeze())
 
@@ -925,36 +763,6 @@ def main():
             f"model_{MODEL_TYPE}_{IMG_SIZE}_CV{FOLDS}_results.json", 'w'))
 
         # Report out of fold validation results
-
-        # print('Loading best model...')
-        # model.load_weights(f'{config['model_label']}.h5')
-
-        # # PREDICT OOF USING TTA
-        # print('Predicting OOF with TTA...')
-        # ds_valid = get_dataset(files_valid,labeled=False,return_image_names=False,augment=True,
-        #         repeat=True,shuffle=False,dim=IMG_SIZES[fold],batch_size=BATCH_SIZES[fold]*4)
-        # ct_valid = count_data_items(files_valid); STEPS = TTA * ct_valid/BATCH_SIZES[fold]/4/REPLICAS
-        # pred = model.predict(ds_valid,steps=STEPS,verbose=VERBOSE)[:TTA*ct_valid,]
-        # oof_pred.append( np.mean(pred.reshape((ct_valid,TTA),order='F'),axis=1) )
-        # #oof_pred.append(model.predict(get_dataset(files_valid,dim=IMG_SIZES[fold]),verbose=1))
-
-        # # GET OOF TARGETS AND NAMES
-        # ds_valid = get_dataset(files_valid, augment=False, repeat=False, dim=IMG_SIZES[fold],
-        #         labeled=True, return_image_names=True)
-        # oof_tar.append( np.array([target.numpy() for img, target in iter(ds_valid.unbatch())]) )
-        # oof_folds.append( np.ones_like(oof_tar[-1],dtype='int8')*fold )
-        # ds = get_dataset(files_valid, augment=False, repeat=False, dim=IMG_SIZES[fold],
-        #             labeled=False, return_image_names=True)
-        # oof_names.append( np.array([img_name.numpy().decode("utf-8") for img, img_name in iter(ds.unbatch())]))
-
-        # # PREDICT TEST USING TTA
-        # print('Predicting Test with TTA...')
-        # ds_test = get_dataset(files_test,labeled=False,return_image_names=False,augment=True,
-        #         repeat=True,shuffle=False,dim=IMG_SIZES[fold],batch_size=BATCH_SIZES[fold]*4)
-        # ct_test = count_data_items(files_test); STEPS = TTA * ct_test/BATCH_SIZES[fold]/4/REPLICAS
-        # pred = model.predict(ds_test,steps=STEPS,verbose=VERBOSE)[:TTA*ct_test,]
-        # preds[:,0] += np.mean(pred.reshape((ct_test,TTA),order='F'),axis=1) * WGTS[fold]
-
         if FINE_TUNING:
             oof_val.append(
                 np.max(history_fit['val_auc'] + history_fine['val_auc']))
@@ -962,7 +770,6 @@ def main():
             oof_val.append(np.max(history_fit['val_auc']))
         print(f'[INFO] Fold {fold} - OOF AUC = {oof_val[-1]:.3f}')
 
-    # print(f"[INFO] IMG_SIZE {IMG_SIZE} - MULTIPLE_IMG_SIZE {MULTIPLE_IMG_SIZE:d} - AUGMENT {AUGMENT:d} - FINE_TUNING {FINE_TUNING:d} - INC2019 {INC2019:d} - INC2018 {INC2018:d} - LR {config['learning_rate']}")
     print(f"[INFO] IMG_SIZE {IMG_SIZE} - MULTIPLE_IMG_SIZE {MULTIPLE_IMG_SIZE:d} - AUGMENT {AUGMENT:d} - FINE_TUNING {FINE_TUNING:d} - LR {config['learning_rate']}")
     print(
         f'[INFO] MODEL {conv_base.name} with image Size {IMG_SIZE} - Mean OOF AUC: {np.mean(oof_val):.4f}')
