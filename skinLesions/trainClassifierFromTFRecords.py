@@ -53,11 +53,11 @@ FINE_TUNING_LAYERS = {
 }
 
 
-def _deserialize_example(example_proto):
+def _deserialize_example(example_proto, labeled=True):
     """
     Parse single example protocol buffer
     """
-
+    if labeled:
     feature_description = {
         'image': tf.io.FixedLenFeature([], tf.string),
         'image_name': tf.io.FixedLenFeature([], tf.string),
@@ -68,11 +68,16 @@ def _deserialize_example(example_proto):
         'diagnosis': tf.io.FixedLenFeature([], tf.int64),
         'target': tf.io.FixedLenFeature([], tf.int64)
     }
+    else:
+        feature_description = {
+            'image': tf.io.FixedLenFeature([], tf.string),
+            'image_name': tf.io.FixedLenFeature([], tf.string)
+        }
 
     return tf.io.parse_single_example(example_proto, feature_description)
 
 
-def _select_features(parsed_example, config, augment):
+def _select_features(parsed_example, config, augment, labeled=True):
     """
     Select features
     """
@@ -82,9 +87,11 @@ def _select_features(parsed_example, config, augment):
         config=config,
         augment=augment
     )
+    if labeled:
     target = parsed_example['target']
-
     return img, target
+    else:
+        return img, 0
 
 
 _augmentation_model = tf.keras.Sequential([
@@ -143,10 +150,11 @@ def _prepare_image(img, config, augment):
     return img
 
 
-def read_dataset(files, config, augment=False, shuffle=False):
+def read_dataset(files, config, augment=False, shuffle=False, labeled=True, return_image_names=False):
     """
     Read and deserialize the dataset from TFRecord files
     """
+    image_names = []
 
     # retrieve raw dataset
     ds = tf.data.TFRecordDataset(files, num_parallel_reads=AUTO)
@@ -160,11 +168,18 @@ def read_dataset(files, config, augment=False, shuffle=False):
     # ds = ds.map(_deserialize_batch_examples)
 
     # parse raw dataset
-    ds = ds.map(_deserialize_example, num_parallel_calls=AUTO)
+    ds = ds.map(lambda x: _deserialize_example(
+        x,
+        labeled=labeled
+    ), num_parallel_calls=AUTO)
+    if return_image_names:
+        image_names = ds.map(
+            lambda parsed_example: parsed_example['image_name'])
     ds = ds.map(lambda x: _select_features(
         x,
         config=config,
-        augment=augment
+        augment=augment,
+        labeled=labeled
     ), num_parallel_calls=AUTO)
 
     ds = ds.batch(config['batch_size']*config['replicas'])
@@ -185,7 +200,7 @@ def read_dataset(files, config, augment=False, shuffle=False):
 
     ds = ds.prefetch(AUTO)
 
-    return ds
+    return ds, image_names
 
 
 def build_model(config):
@@ -781,27 +796,29 @@ def main():
         # print(f"Files valid: {len(files_valid)}")
         # print(f"Files test: {len(files_test)}")
 
-        ds_train = read_dataset(
+        ds_train, _ = read_dataset(
             files=files_train,
             config=config,
             augment=config['augment'],
             shuffle=True
         )
-        ds_valid = read_dataset(
+        ds_valid, _ = read_dataset(
             files=files_valid,
             config=config,
             augment=False
         )
-        # ds_test  = read_dataset(
-        #     files=files_test,
-        #     config=config,
-        #     augment=False
-        # )
+        ds_test, image_names = read_dataset(
+            files=files_test,
+            config=config,
+            augment=False,
+            labeled=False,
+            return_image_names=True
+        )
 
         dataloader = {
             'train': ds_train,
             'valid': ds_valid,
-            # 'test': ds_test
+            'test': ds_test
         }
 
         # Handling imbalance data
