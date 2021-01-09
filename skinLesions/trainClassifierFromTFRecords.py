@@ -59,16 +59,16 @@ def _deserialize_example(example_proto, labeled=True):
     Parse single example protocol buffer
     """
     if labeled:
-    feature_description = {
-        'image': tf.io.FixedLenFeature([], tf.string),
-        'image_name': tf.io.FixedLenFeature([], tf.string),
-        'patient_id': tf.io.FixedLenFeature([], tf.int64),
-        'sex': tf.io.FixedLenFeature([], tf.int64),
-        'age_approx': tf.io.FixedLenFeature([], tf.int64),
-        'anatom_site_general_challenge': tf.io.FixedLenFeature([], tf.int64),
-        'diagnosis': tf.io.FixedLenFeature([], tf.int64),
-        'target': tf.io.FixedLenFeature([], tf.int64)
-    }
+        feature_description = {
+            'image': tf.io.FixedLenFeature([], tf.string),
+            'image_name': tf.io.FixedLenFeature([], tf.string),
+            'patient_id': tf.io.FixedLenFeature([], tf.int64),
+            'sex': tf.io.FixedLenFeature([], tf.int64),
+            'age_approx': tf.io.FixedLenFeature([], tf.int64),
+            'anatom_site_general_challenge': tf.io.FixedLenFeature([], tf.int64),
+            'diagnosis': tf.io.FixedLenFeature([], tf.int64),
+            'target': tf.io.FixedLenFeature([], tf.int64)
+        }
     else:
         feature_description = {
             'image': tf.io.FixedLenFeature([], tf.string),
@@ -89,8 +89,8 @@ def _select_features(parsed_example, config, augment, labeled=True):
         augment=augment
     )
     if labeled:
-    target = parsed_example['target']
-    return img, target
+        target = parsed_example['target']
+        return img, target
     else:
         return img, 0
 
