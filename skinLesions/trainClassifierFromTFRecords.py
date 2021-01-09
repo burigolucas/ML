@@ -1,6 +1,7 @@
 import time
 import math
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import json
 
@@ -717,6 +718,18 @@ def enable_fine_tunning(conv_base, config):
             layer.trainable = False
 
 
+def create_submission_file(image_names, preds, outputfile='submission.csv'):
+
+    image_names = np.array([img_name.numpy().decode("utf-8")
+                            for img_name in iter(image_names)])
+
+    preds = np.array(preds).mean(axis=0)
+
+    submission = pd.DataFrame(dict(image_name=image_names, target=preds))
+    submission = submission.sort_values('image_name')
+    submission.to_csv(outputfile, index=False)
+
+
 def main():
 
     tic = time.perf_counter()
@@ -755,6 +768,7 @@ def main():
 
     oof_val = []
     settings = []
+    preds = []
 
     for fold, (idxT, idxV) in enumerate(skf.split(np.arange(15))):
 
@@ -787,7 +801,8 @@ def main():
         files_valid = tf.io.gfile.glob(
             [PATH + '/train%.2i*.tfrec' % x for x in idxV])
 
-        # files_test = np.sort(np.array(tf.io.gfile.glob(GCS_PATH1 + '/test*.tfrec'))).tolist()
+        files_test = np.sort(
+            np.array(tf.io.gfile.glob(PATH + '/test*.tfrec'))).tolist()
 
         # files_train, files_valid = train_test_split(
         #     files_train, test_size = 0.2, random_state = SEED)
@@ -888,6 +903,12 @@ def main():
                 history_fine = history_fine.history
                 history_fine['lr'] = [float(lr) for lr in history_fine['lr']]
 
+            # print('Loading best model...')
+            model.load_weights(f"{config['model_label']}.h5")
+            # SavedModel
+            predictions = model.predict(dataloader['test'])
+            preds.append(predictions.squeeze())
+
         # save settings to json file
         fold_settings = {
             'config': config,
@@ -954,6 +975,7 @@ def main():
 
     toc = time.perf_counter()
     print(f"[INFO] TIME: {toc - tic:0.4f} seconds")
+    create_submission_file(image_names, preds)
 
 
 if __name__ == '__main__':
